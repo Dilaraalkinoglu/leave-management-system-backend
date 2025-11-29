@@ -1,0 +1,37 @@
+digraph "public" {
+
+splines  = ortho;
+fontname = "Inconsolata";
+
+node [colorscheme = ylgnbu4];
+edge [colorscheme = dark28, dir = both];
+
+departments            [shape = record, label = "{ departments |  is_active : boolean\l  created_at : timestamp(6)\l  manager_personnel_id : bigint\l  updated_at : timestamp(6)\l  name : varchar(255)\l| id : bigint\l }"];
+employees              [shape = record, label = "{ employees |  birth_date : date\l  daily_work_hours : numeric(4,1)\l  hire_date : date\l  is_active : boolean\l  created_at : timestamp(6)\l  department_id : bigint\l  updated_at : timestamp(6)\l  first_name : varchar(100)\l  job_title : varchar(100)\l  last_name : varchar(100)\l  email : varchar(255)\l  work_type : varchar(255)\l| id : bigint\l }"];
+leave_approval_history [shape = record, label = "{ leave_approval_history |  is_active : boolean\l  created_at : timestamp(6)\l  employee_id : bigint\l  request_id : bigint\l  updated_at : timestamp(6)\l  action : varchar(255)\l  comments : text\l| id : bigint\l }"];
+leave_attachments      [shape = record, label = "{ leave_attachments |  is_active : boolean\l  created_at : timestamp(6)\l  request_id : bigint\l  updated_at : timestamp(6)\l  file_type : varchar(50)\l  file_path : varchar(500)\l  file_name : varchar(255)\l| id : bigint\l }"];
+leave_entitlements     [shape = record, label = "{ leave_entitlements |  hours_used : numeric(10,2)\l  is_active : boolean\l  total_hours_entitled : numeric(10,2)\l  year : integer\l  created_at : timestamp(6)\l  employee_id : bigint\l  updated_at : timestamp(6)\l| id : bigint\l }"];
+leave_requests         [shape = record, label = "{ leave_requests |  duration_hours : numeric(10,2)\l  is_active : boolean\l  created_at : timestamp(6)\l  employee_id : bigint\l  end_date_time : timestamp(6)\l  leave_type_id : bigint\l  start_date_time : timestamp(6)\l  updated_at : timestamp(6)\l  reason : text\l  request_status : varchar(255)\l  workflow_next_approver_role : varchar(255)\l| id : bigint\l }"];
+leave_types            [shape = record, label = "{ leave_types |  deducts_from_annual : boolean\l  is_active : boolean\l  is_paid : boolean\l  created_at : timestamp(6)\l  updated_at : timestamp(6)\l  name : varchar(255)\l  request_unit : varchar(255)\l  workflow_definition : text\l| id : bigint\l }"];
+permissions            [shape = record, label = "{ permissions |  is_active : boolean\l  created_at : timestamp(6)\l  updated_at : timestamp(6)\l  permission_name : varchar(255)\l| id : bigint\l }"];
+public_holidays        [shape = record, label = "{ public_holidays |  holiday_date : date\l  is_active : boolean\l  is_half_day : boolean\l  created_at : timestamp(6)\l  updated_at : timestamp(6)\l  name : varchar(255)\l| id : bigint\l }"];
+role_permissions       [shape = record, label = "{ role_permissions |  permission_id : bigint\l  role_id : bigint\l }"];
+roles                  [shape = record, label = "{ roles |  is_active : boolean\l  created_at : timestamp(6)\l  updated_at : timestamp(6)\l  role_name : varchar(255)\l| id : bigint\l }"];
+user_roles             [shape = record, label = "{ user_roles |  role_id : bigint\l  user_id : bigint\l }"];
+users                  [shape = record, label = "{ users |  failed_login_attempts : integer\l  is_active : boolean\l  created_at : timestamp(6)\l  last_login : timestamp(6)\l  password_reset_expires : timestamp(6)\l  updated_at : timestamp(6)\l  password_hash : varchar(255)\l  password_reset_token : varchar(255)\l| id : bigint\l }"];
+
+departments            -> employees              [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "manager_personnel_id:id", headlabel = ""];
+employees              -> departments            [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "department_id:id", headlabel = ""];
+leave_approval_history -> employees              [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "employee_id:id", headlabel = ""];
+leave_approval_history -> leave_requests         [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "request_id:id", headlabel = ""];
+leave_attachments      -> leave_requests         [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "request_id:id", headlabel = ""];
+leave_entitlements     -> employees              [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "employee_id:id", headlabel = ""];
+leave_requests         -> employees              [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "employee_id:id", headlabel = ""];
+leave_requests         -> leave_types            [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "leave_type_id:id", headlabel = ""];
+role_permissions       -> permissions            [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "permission_id:id", headlabel = ""];
+role_permissions       -> roles                  [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "role_id:id", headlabel = ""];
+user_roles             -> roles                  [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "role_id:id", headlabel = ""];
+user_roles             -> users                  [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "user_id:id", headlabel = ""];
+users                  -> employees              [color = "#595959", style = solid , arrowtail = none    , arrowhead = normal  , taillabel = "", label = "id", headlabel = ""];
+
+}
