@@ -54,7 +54,6 @@ public class LeaveRequestService {
     private final PublicHolidayRepository publicHolidayRepository;
     private final UserRepository userRepository;
     private final com.cozumtr.leave_management_system.service.LeaveAttachmentService leaveAttachmentService;
-    private final SmsService smsService;
 
     // --- İZİN TALEBİ OLUŞTURMA ---
     @Transactional
@@ -168,12 +167,6 @@ public class LeaveRequestService {
             leaveAttachmentService.uploadAttachment(savedRequest.getId(), file);
         }
 
-        sendSmsIfAvailable(
-                employee.getPhoneNumber(),
-                String.format("İzin talebin alındı. Tarih: %s - %s, durum: Beklemede.",
-                        request.getStartDate(), request.getEndDate())
-        );
-
         return mapToResponse(savedRequest);
     }
 
@@ -213,12 +206,6 @@ public class LeaveRequestService {
         request.setRequestStatus(RequestStatus.CANCELLED);
         request.setWorkflowNextApproverRole("");
         leaveRequestRepository.save(request);
-
-        sendSmsIfAvailable(
-                request.getEmployee().getPhoneNumber(),
-                String.format("İzin talebin iptal edildi. Tarih: %s - %s",
-                        request.getStartDateTime(), request.getEndDateTime())
-        );
     }
 
     /**
@@ -320,14 +307,6 @@ public class LeaveRequestService {
         // 7. İzin talebini kaydet
         LeaveRequest savedRequest = leaveRequestRepository.save(leaveRequest);
 
-        if (savedRequest.getRequestStatus() == RequestStatus.APPROVED) {
-            sendSmsIfAvailable(
-                    savedRequest.getEmployee().getPhoneNumber(),
-                    String.format("İzin talebin onaylandı. Tarih: %s - %s",
-                            savedRequest.getStartDateTime(), savedRequest.getEndDateTime())
-            );
-        }
-
         return mapToResponse(savedRequest);
     }
 
@@ -391,23 +370,10 @@ public class LeaveRequestService {
         // 7. İzin talebini kaydet
         LeaveRequest savedRequest = leaveRequestRepository.save(leaveRequest);
 
-        sendSmsIfAvailable(
-                savedRequest.getEmployee().getPhoneNumber(),
-                String.format("İzin talebin reddedildi. Tarih: %s - %s. Açıklama: %s",
-                        savedRequest.getStartDateTime(), savedRequest.getEndDateTime(),
-                        comments != null ? comments : "-")
-        );
-
         return mapToResponse(savedRequest);
     }
 
-    private void sendSmsIfAvailable(String phoneNumber, String message) {
-        if (phoneNumber == null || phoneNumber.isBlank()) {
-            log.info("[SMS-SKIP] Telefon numarası yok, mesaj gönderilmedi. Mesaj: {}", message);
-            return;
-        }
-        smsService.sendSms(phoneNumber, message);
-    }
+
 
     private void saveApprovalHistory(LeaveRequest leaveRequest,
                                      Employee approver,

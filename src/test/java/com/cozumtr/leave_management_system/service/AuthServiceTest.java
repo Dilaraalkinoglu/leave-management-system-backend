@@ -116,10 +116,6 @@ class AuthServiceTest {
 
     private EmailService emailService;
 
-    @Mock
-
-    private SmsService smsService;
-
 
 
     @Mock
@@ -208,7 +204,6 @@ class AuthServiceTest {
         verify(userRepository, times(1)).save(any(User.class));
 
         verify(emailService, times(1)).sendPasswordResetEmail(eq(email), anyString());
-        verify(smsService, never()).sendSms(anyString(), anyString());
 
         assertNotNull(testUser.getPasswordResetToken());
 
@@ -242,8 +237,6 @@ class AuthServiceTest {
 
         verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString());
 
-        verify(smsService, never()).sendSms(anyString(), anyString());
-
     }
 
 
@@ -273,8 +266,6 @@ class AuthServiceTest {
         // Then
 
         verify(userRepository, times(1)).save(any(User.class));
-
-        verify(smsService, times(1)).sendSms(eq("+905551112233"), anyString());
 
         verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString());
 
@@ -312,8 +303,6 @@ class AuthServiceTest {
 
         verify(userRepository, never()).save(any(User.class));
 
-        verify(smsService, never()).sendSms(anyString(), anyString());
-
         verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString());
 
     }
@@ -349,8 +338,6 @@ class AuthServiceTest {
         verify(userRepository, never()).save(any(User.class));
 
         verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString());
-
-        verify(smsService, never()).sendSms(anyString(), anyString());
 
     }
 

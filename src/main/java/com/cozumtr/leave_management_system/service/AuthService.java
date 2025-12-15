@@ -44,7 +44,6 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
     private final AuthenticationManager authenticationManager;
-    private final SmsService smsService;
     private final LeaveEntitlementService leaveEntitlementService;
 
     /**
@@ -394,10 +393,9 @@ public class AuthService {
             emailService.sendPasswordResetEmail(email, resetToken);
         }
 
-        // SMS gönder (isteğe bağlı kanal)
+        // SMS gönder (isteğe bağlı kanal) - Şu an için devre dışı
         if (effectiveChannel == NotificationChannel.SMS) {
-            sendSmsIfAvailable(user.getEmployee().getPhoneNumber(),
-                    String.format("Şifre sıfırlama kodun: %s (15 dk geçerli)", resetToken));
+            log.info("SMS gönderimi şu an desteklenmiyor. Telefon: {}", user.getEmployee().getPhoneNumber());
         }
 
         log.info("Şifre sıfırlama token'ı oluşturuldu. Kanal: {} Kullanıcı: {}", effectiveChannel, email);
@@ -531,12 +529,6 @@ public class AuthService {
                 .build();
     }
 
-    private void sendSmsIfAvailable(String phoneNumber, String message) {
-        if (phoneNumber == null || phoneNumber.isBlank()) {
-            log.info("[SMS-SKIP] Telefon numarası yok, mesaj gönderilmedi. Mesaj: {}", message);
-            return;
-        }
-        smsService.sendSms(phoneNumber, message);
-    }
+
 }
 

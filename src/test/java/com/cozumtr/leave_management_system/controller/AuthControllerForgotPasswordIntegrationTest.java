@@ -11,7 +11,6 @@ import com.cozumtr.leave_management_system.repository.RoleRepository;
 import com.cozumtr.leave_management_system.repository.UserRepository;
 import com.cozumtr.leave_management_system.repository.DepartmentRepository;
 import com.cozumtr.leave_management_system.service.EmailService;
-import com.cozumtr.leave_management_system.service.SmsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -69,9 +68,6 @@ class AuthControllerForgotPasswordIntegrationTest {
     @MockBean
     private EmailService emailService;
 
-    @MockBean
-    private SmsService smsService;
-
     private User user;
 
     @BeforeEach
@@ -126,7 +122,6 @@ class AuthControllerForgotPasswordIntegrationTest {
                 .andExpect(content().string(containsString("şifre sıfırlama")));
 
         verify(emailService, times(1)).sendPasswordResetEmail(anyString(), anyString());
-        verify(smsService, never()).sendSms(anyString(), anyString());
 
         User updated = userRepository.findByEmployeeEmail("test@example.com").orElseThrow();
         assertNotNull(updated.getPasswordResetToken());
@@ -146,7 +141,6 @@ class AuthControllerForgotPasswordIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
 
-        verify(smsService, times(1)).sendSms(anyString(), anyString());
         verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString());
 
         User updated = userRepository.findByEmployeeEmail("test@example.com").orElseThrow();
@@ -167,7 +161,6 @@ class AuthControllerForgotPasswordIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
-        verify(smsService, never()).sendSms(anyString(), anyString());
         verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString());
 
         User updated = userRepository.findByEmployeeEmail("test@example.com").orElseThrow();
