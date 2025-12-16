@@ -288,7 +288,7 @@ public class LeaveRequestService {
             leaveRequest.setRequestStatus(RequestStatus.APPROVED);
             leaveRequest.setWorkflowNextApproverRole(""); // Artık onaylayıcı yok (nullable değil, boş string kullanıyoruz)
             deductLeaveBalance(leaveRequest);
-            
+
             // BİLDİRİM C: Nihai onay - Talep sahibine bildir
             String approverName = approver.getFirstName() + " " + approver.getLastName();
             emailService.sendFinalDecisionNotification(leaveRequest, true, approverName);
@@ -307,11 +307,11 @@ public class LeaveRequestService {
                 // Şimdilik PENDING_APPROVAL olarak bırakıyoruz
                 leaveRequest.setRequestStatus(RequestStatus.PENDING_APPROVAL);
             }
-            
+
             // BİLDİRİM B: Aşamalı ilerleme - Talep sahibine bildir
             String approverName = approver.getFirstName() + " " + approver.getLastName();
             emailService.sendProgressNotification(leaveRequest, approverName, nextRole);
-            
+
             // BİLDİRİM A: Sıradaki onaycıya bildir
             notifyNextApprover(leaveRequest, nextRole);
         }
@@ -384,7 +384,7 @@ public class LeaveRequestService {
 
         // 7. İzin talebini kaydet
         LeaveRequest savedRequest = leaveRequestRepository.save(leaveRequest);
-        
+
         // BİLDİRİM C: Nihai red - Talep sahibine bildir
         String approverName = approver.getFirstName() + " " + approver.getLastName();
         emailService.sendFinalDecisionNotification(leaveRequest, false, approverName);
@@ -502,31 +502,75 @@ public class LeaveRequestService {
 
         Employee currentEmployee = currentUser.getEmployee();
 
-        boolean isHrOrCeo = currentUser.getRoles().stream()
-                .anyMatch(r -> r.getRoleName().equals("HR") || r.getRoleName().equals("CEO") || r.getRoleName().equals("ADMIN"));
+        boolean isHr = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getRoleName().equals("HR"));
+
+        boolean isCeo = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getRoleName().equals("CEO"));
 
         boolean isManager = currentUser.getRoles().stream()
                 .anyMatch(r -> r.getRoleName().equals("MANAGER"));
 
-        if (!isHrOrCeo && !isManager) {
+        if (!isHr && !isCeo && !isManager) {
             throw new BusinessException("Bu ekranı görüntüleme yetkiniz yok.");
         }
 
         List<LeaveRequest> leaveRequests;
-        if (isHrOrCeo) {
-            // HR and CEO see everything
+
+        if (isCeo) {
+            // CEO: Tüm talepleri görebilir
+            leaveRequests = leaveRequestRepository.findAllWithDetails();
+        } else if (isHr) {
+            // HR: Tüm talepleri görebilir
             leaveRequests = leaveRequestRepository.findAllWithDetails();
         } else {
-            // Managers see their department
+            // MANAGER: Sadece kendi departmanının taleplerini görebilir
             if (currentEmployee == null || currentEmployee.getDepartment() == null) {
                 throw new BusinessException("Departman bilgisi bulunamadı.");
             }
             leaveRequests = leaveRequestRepository.findAllByDepartmentId(currentEmployee.getDepartment().getId());
         }
 
+        // Filtreleme: Kullanıcının rolüne göre sadece ilgili talepleri göster
         return leaveRequests.stream()
+                .filter(request -> shouldShowRequest(request, currentUser, isHr, isCeo, isManager))
                 .map(this::mapToManagerResponse)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Bir talebin kullanıcıya gösterilip gösterilmeyeceğini belirler
+     */
+    private boolean shouldShowRequest(LeaveRequest request,
+                                      com.cozumtr.leave_management_system.entities.User currentUser,
+                                      boolean isHr, boolean isCeo, boolean isManager) {
+        String nextApproverRole = request.getWorkflowNextApproverRole();
+        RequestStatus status = request.getRequestStatus();
+
+        // HR ve CEO tüm talepleri görebilir
+        if (isHr || isCeo) {
+            return true;
+        }
+
+        // Yönetici için:
+        if (isManager) {
+            // 1. Sırada kendisi varsa göster (MANAGER onayı bekliyor)
+            if ("MANAGER".equals(nextApproverRole)) {
+                return true;
+            }
+
+            // 2. Tamamlanmış talepleri göster (onaylanmış veya reddedilmiş)
+            if (status == RequestStatus.APPROVED ||
+                    status == RequestStatus.REJECTED ||
+                    status == RequestStatus.CANCELLED) {
+                return true;
+            }
+
+            // 3. Diğer durumlarda gösterme (henüz sırası gelmemiş)
+            return false;
+        }
+
+        return false;
     }
 
     /**
@@ -739,7 +783,7 @@ public class LeaveRequestService {
                 .startDate(leaveRequest.getStartDateTime())
                 .endDate(leaveRequest.getEndDateTime())
                 .duration(leaveRequest.getDurationHours())
-                .reason(leaveRequest.getReason())  
+                .reason(leaveRequest.getReason())
                 .currentStatus(leaveRequest.getRequestStatus())
                 .workflowNextApproverRole(leaveRequest.getWorkflowNextApproverRole())
                 .approvalHistory(history)
@@ -872,59 +916,59 @@ public class LeaveRequestService {
                 .overlappingLeaves(detailList)
                 .build();
     }
-    
+
     /**
      * Sıradaki onaycıya bildirim gönderir
      * MANAGER rolü için: Sadece talep sahibinin departmanındaki manager'lara bildirim gönderilir
      * HR/CEO rolleri için: Tüm HR/CEO kullanıcılarına bildirim gönderilir
-     * 
+     *
      * @param leaveRequest İzin talebi
      * @param approverRole Onaycının rolü
      */
     private void notifyNextApprover(LeaveRequest leaveRequest, String approverRole) {
         try {
             List<com.cozumtr.leave_management_system.entities.User> approvers;
-            
+
             // MANAGER rolü için departman bazlı filtreleme
             if ("MANAGER".equals(approverRole)) {
                 Employee employee = leaveRequest.getEmployee();
                 if (employee.getDepartment() == null) {
-                    log.warn("⚠️ Çalışanın departmanı bulunamadı. Email bildirimi gönderilemedi. Talep: #{}", 
+                    log.warn("⚠️ Çalışanın departmanı bulunamadı. Email bildirimi gönderilemedi. Talep: #{}",
                             leaveRequest.getId());
                     return;
                 }
-                
+
                 Long departmentId = employee.getDepartment().getId();
                 approvers = userRepository.findActiveUsersByRoleAndDepartment(approverRole, departmentId);
-                
-                log.debug("🔍 MANAGER bildirimi: Departman ID={}, Bulunan manager sayısı={}", 
+
+                log.debug("🔍 MANAGER bildirimi: Departman ID={}, Bulunan manager sayısı={}",
                         departmentId, approvers.size());
             } else {
                 // HR, CEO gibi roller için tüm kullanıcıları bul
                 approvers = userRepository.findActiveUsersByRole(approverRole);
-                
-                log.debug("🔍 {} bildirimi: Bulunan kullanıcı sayısı={}", 
+
+                log.debug("🔍 {} bildirimi: Bulunan kullanıcı sayısı={}",
                         approverRole, approvers.size());
             }
-            
+
             if (approvers.isEmpty()) {
-                log.warn("⚠️ Rol '{}' için aktif onaycı bulunamadı. Email bildirimi gönderilemedi. Talep: #{}", 
+                log.warn("⚠️ Rol '{}' için aktif onaycı bulunamadı. Email bildirimi gönderilemedi. Talep: #{}",
                         approverRole, leaveRequest.getId());
                 return;
             }
-            
+
             // Tüm onaycılara bildirim gönder
             for (com.cozumtr.leave_management_system.entities.User approver : approvers) {
                 if (approver.getEmployee() != null && approver.getEmployee().getEmail() != null) {
                     emailService.sendApprovalNotification(
-                        approver.getEmployee().getEmail(), 
-                        leaveRequest, 
-                        approverRole
+                            approver.getEmployee().getEmail(),
+                            leaveRequest,
+                            approverRole
                     );
                 }
             }
-            
-            log.info("✅ {} adet '{}' rolündeki onaycıya bildirim gönderildi. Talep: #{}", 
+
+            log.info("✅ {} adet '{}' rolündeki onaycıya bildirim gönderildi. Talep: #{}",
                     approvers.size(), approverRole, leaveRequest.getId());
         } catch (Exception e) {
             log.error("❌ Onaycıya bildirim gönderilirken hata oluştu: {}", e.getMessage(), e);

@@ -122,7 +122,7 @@ public class AuthService {
                     throw new BusinessException("Hesabınız kilitlendi. Lütfen şifrenizi sıfırlayın.");
                 } else {
                     // Genel hata mesajı (kalan hak bilgisi gösterilmez)
-                    log.warn("Başarısız giriş denemesi: {} (Deneme: {}/5, Kalan: {})", 
+                    log.warn("Başarısız giriş denemesi: {} (Deneme: {}/5, Kalan: {})",
                             request.getEmail(), failedAttempts, remainingAttempts);
                     throw new BusinessException("Giriş bilgileri hatalı. Lütfen tekrar deneyin.");
                 }
@@ -186,7 +186,7 @@ public class AuthService {
         user.getRoles().add(hrRole);
 
         userRepository.save(user);
-        
+
         // İzin hakkı oluştur (mevcut yıl için)
         try {
             int currentYear = LocalDate.now().getYear();
@@ -195,7 +195,7 @@ public class AuthService {
         } catch (Exception e) {
             log.error("İzin hakkı oluşturulurken hata: {} - {}", adminEmail, e.getMessage());
         }
-        
+
         log.info("İlk admin kullanıcı oluşturuldu: {}", adminEmail);
     }
 
@@ -249,7 +249,7 @@ public class AuthService {
         user.setPasswordResetToken(activationToken); // passwordResetToken alanını aktivasyon token'ı olarak kullanıyoruz
         user.setPasswordResetExpires(java.time.LocalDateTime.now().plusHours(24)); // 24 saat geçerli
 
-        // İK'nın belirttiği rolü ekle
+        // İK'nın belirttiği rolü ekle (opsiyonel - örn: MANAGER)
         // Eğer roleId verilmişse, o rolü ekle
         if (request.getRoleId() != null) {
             Role role = roleRepository.findById(request.getRoleId())
@@ -257,8 +257,24 @@ public class AuthService {
             user.getRoles().add(role);
         }
 
+        // Departmana göre otomatik rol ataması
+        String departmentName = department.getName();
+        if ("İnsan Kaynakları".equalsIgnoreCase(departmentName)) {
+            // İnsan Kaynakları departmanındaki herkes otomatik HR rolü alır
+            Role hrRole = roleRepository.findByRoleName("HR")
+                    .orElseThrow(() -> new BusinessException("HR rolü bulunamadı. InitialDataSeeder kontrol et."));
+            user.getRoles().add(hrRole);
+            log.info("İnsan Kaynakları departmanı için HR rolü otomatik eklendi: {}", request.getEmail());
+        } else if ("Muhasebe".equalsIgnoreCase(departmentName) || "Finans".equalsIgnoreCase(departmentName)) {
+            // Muhasebe/Finans departmanındaki herkes otomatik ACCOUNTING rolü alır
+            Role accountingRole = roleRepository.findByRoleName("ACCOUNTING")
+                    .orElseThrow(() -> new BusinessException("ACCOUNTING rolü bulunamadı. InitialDataSeeder kontrol et."));
+            user.getRoles().add(accountingRole);
+            log.info("Muhasebe/Finans departmanı için ACCOUNTING rolü otomatik eklendi: {}", request.getEmail());
+        }
+
         // Default EMPLOYEE rolünü ekle (her kullanıcı aynı zamanda EMPLOYEE'dir)
-        // Eğer seçilen rol zaten EMPLOYEE ise, Set duplicate'ı engelleyecektir
+        // Set yapısı duplicate'ları otomatik engeller
         Role employeeRole = roleRepository.findByRoleName("EMPLOYEE")
                 .orElseThrow(() -> new BusinessException("EMPLOYEE rolü bulunamadı. InitialDataSeeder kontrol et."));
         user.getRoles().add(employeeRole);
@@ -475,7 +491,7 @@ public class AuthService {
 
     /**
      * User ve roller bilgilerini AuthResponseDto'ya çevirir.
-     * 
+     *
      * @param token JWT token
      * @param user User entity
      * @param roles Kullanıcı rolleri
@@ -498,7 +514,7 @@ public class AuthService {
 
     /**
      * Employee ve roller bilgilerini EmployeeResponseDto'ya çevirir.
-     * 
+     *
      * @param employee Employee entity
      * @param roles Kullanıcı rolleri
      * @return EmployeeResponseDto
