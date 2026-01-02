@@ -33,3 +33,10 @@ build/
 .vscode/
 
 .env
+
+# Log dosyalarını engelle
+*.log
+backend_run_log_*.txt
+
+# Kullanıcı yüklemelerini engelle
+uploads/
